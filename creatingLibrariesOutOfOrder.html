@@ -1,0 +1,107 @@
+<script src="simpleTest/simpleTest.js"></script>
+<script>
+// Requirements:
+	// x Functions should be able to be created out of order.
+	// x The callback function for each library should be run only once.
+	// x All prior requrements must be met:
+		// x It should throw a TypeError if the dependencies argument is not an array.
+		// x If all three arguments are passed to librarySystem, library should be stored in libraryStorage.
+		// x If only libraryName is provided, librarySystem should return the library, if it exists.
+
+(function() {
+	var libraryStorage = {};
+
+	function librarySystem(libraryName, dependencies, callback) {
+		if (arguments.length > 1) {
+			if (!Array.isArray(dependencies)) {
+				throw new TypeError(dependencies + ' is not an array.');
+			}
+
+			libraryStorage[libraryName] = {
+				dependencies: dependencies,
+				callback: callback
+			};
+		} else {
+			if (typeof libraryStorage[libraryName].callback === 'function') {
+				var mappedDependencies = libraryStorage[libraryName].dependencies.map(function(currentValue) {
+					return libraryStorage[currentValue].callback();
+				});
+
+				libraryStorage[libraryName].callback = libraryStorage[libraryName].callback.apply(this, mappedDependencies);
+			}
+
+			return libraryStorage[libraryName].callback;
+		}
+	}
+
+	window.librarySystem = librarySystem;
+})();
+
+tests({
+	'If all three arguments are passed to librarySystem, library should be stored in libraryStorage.': function() {
+		var sandwichLibrary = {
+			breads: {
+				white: "the unhealthy option.",
+				wheat: "the healthy option."
+			}
+		}
+
+		librarySystem('sandwichLibrary', [], function() {
+			return sandwichLibrary;
+		});
+		eq(sandwichLibrary, librarySystem('sandwichLibrary'));
+	},
+	'If only libraryName is passed to librarySystem, the library should be returned.': function() {
+		var sandwichLibrary = {
+			breads: {
+				white: "the unhealthy option.",
+				wheat: "the healthy option."
+			}
+		}
+		var sandwichReturn = librarySystem('sandwichLibrary');
+
+		eq(JSON.stringify(sandwichReturn), JSON.stringify(sandwichLibrary));
+	},
+	'Functions should be created out of order.': function() {
+		librarySystem('workBlurb', ['name', 'company'], function(name, company) {
+  			return name + ' works at ' + company;
+		});
+
+		librarySystem('name', [], function() {
+  			return 'Gordon';
+		});
+
+		librarySystem('company', [], function() {
+  			return 'Watch and Code';
+		});
+
+		var result = librarySystem('workBlurb');
+		eq('Gordon works at Watch and Code', result);
+	},
+	'It should run the callback function for each library only once.': function() {
+		var numOfTimesCallbackHasRun = 0;
+
+		librarySystem('workBlurb2', ['name', 'company'], function(name, company) {
+			numOfTimesCallbackHasRun++;
+  			return name + ' works at ' + company;
+		});
+
+		librarySystem('workBlurb2');
+		librarySystem('workBlurb2');
+		librarySystem('workBlurb2');
+		librarySystem('workBlurb2');
+		eq(1, numOfTimesCallbackHasRun);
+	},
+	'If the dependencies argument is not an array, throw a TypeError': function() {
+		//fail();
+		var isTypeError = false;
+		try {
+			librarySystem('failLibrary', 'string', function() {});
+		} catch(e) {
+			isTypeError = e instanceof TypeError;
+		}
+
+		eq(true, isTypeError);
+	},
+});
+</script>
